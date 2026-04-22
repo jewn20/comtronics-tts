@@ -5,36 +5,139 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
-    body { margin:0; font-family:Segoe UI; background:#0f172a; color:white; }
-    .container { max-width:1100px; margin:auto; padding:20px; }
+    body {
+      margin: 0;
+      font-family: Segoe UI;
+      background: #0f172a;
+      color: white;
+    }
 
-    .hero h1 { font-size:40px; color:#38bdf8; margin:0; }
-    .hero h2 { color:#cbd5f5; }
-    .hero p { color:#94a3b8; line-height:1.6; }
+    .container {
+      max-width: 1100px;
+      margin: auto;
+      padding: 20px;
+    }
 
-    .layout { display:flex; gap:20px; margin-top:20px; }
-    .card { background:#1e293b; padding:20px; border-radius:12px; }
+    /* HERO */
+    .hero h1 {
+      font-size: 40px;
+      color: #38bdf8;
+      margin: 0;
+    }
 
-    textarea { width:100%; height:300px; background:#0f172a; color:white; border:1px solid #334155; padding:10px; border-radius:8px; }
+    .hero h2 {
+      color: #cbd5f5;
+      margin: 5px 0;
+    }
+
+    .hero p {
+      color: #94a3b8;
+      max-width: 600px;
+      line-height: 1.6;
+    }
+
+    .hero button {
+      margin-top: 10px;
+      padding: 10px 15px;
+      border-radius: 8px;
+      border: none;
+      background: #38bdf8;
+      color: black;
+      cursor: pointer;
+    }
+
+    /* DASHBOARD */
+    .dashboard {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 12px;
+      margin-top: 20px;
+    }
+
+    .progress {
+      height: 10px;
+      background: #334155;
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+
+    #progressBar {
+      height: 10px;
+      background: #38bdf8;
+      border-radius: 10px;
+      width: 0%;
+    }
+
+    /* APP */
+    .layout {
+      display: flex;
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 12px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 300px;
+      background: #0f172a;
+      color: white;
+      border: 1px solid #334155;
+      padding: 10px;
+      border-radius: 8px;
+    }
 
     input, select {
-      width:100%;
-      padding:10px;
-      margin-top:8px;
-      background:#0f172a;
-      border:1px solid #334155;
-      color:white;
-      border-radius:8px;
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: white;
+      border-radius: 8px;
     }
 
-    button { padding:12px; margin-top:10px; width:100%; border:none; border-radius:10px; background:#38bdf8; color:black; cursor:pointer; }
+    button.generate {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      background: #38bdf8;
+      border: none;
+      border-radius: 10px;
+      color: black;
+      cursor: pointer;
+    }
 
-    .pricing { margin-top:60px; text-align:center; }
-    .plan { background:#1e293b; padding:20px; border-radius:12px; width:250px; display:inline-block; margin:10px; }
+    audio {
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    /* PRICING */
+    .pricing {
+      margin-top: 60px;
+      text-align: center;
+    }
+
+    .plan {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 12px;
+      width: 250px;
+      display: inline-block;
+      margin: 10px;
+    }
 
     @media(max-width:768px){
-      .layout { flex-direction:column; }
+      .layout {
+        flex-direction: column;
+      }
     }
+
   </style>
 </head>
 
@@ -50,7 +153,20 @@
       COMTRONICS TTS is a high-performance Neural Text-to-Speech platform designed 
       to bridge the gap between digital content and human connection.
     </p>
+
     <button onclick="loginWithGoogle()">Sign in with Google</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="dashboard">
+    <strong id="plan">FREE PLAN</strong><br>
+    <span id="usageText">0 / 3 used</span>
+
+    <div class="progress">
+      <div id="progressBar"></div>
+    </div>
+
+    <button onclick="upgrade()">Upgrade</button>
   </div>
 
   <!-- APP -->
@@ -63,15 +179,17 @@ hindi ka naman talaga kulang...</textarea>
     </div>
 
     <div class="card" style="flex:1">
+
       <input id="search" placeholder="Search voice..." onkeyup="filterVoices()">
       <select id="voice"></select>
 
       <input type="range" id="rate" min="-50" max="50" value="10">
       <input type="range" id="pitch" min="-10" max="10" value="0">
 
-      <button onclick="generate()">🚀 Generate</button>
+      <button class="generate" onclick="generate()">🚀 Generate</button>
 
       <audio id="audio" controls></audio>
+
     </div>
 
   </div>
@@ -82,12 +200,12 @@ hindi ka naman talaga kulang...</textarea>
 
     <div class="plan">
       <h3>Free</h3>
-      <p>10 generations/day</p>
+      <p>3 generations per day</p>
     </div>
 
     <div class="plan">
       <h3>Pro</h3>
-      <p>Unlimited</p>
+      <p>Unlimited generation</p>
     </div>
   </div>
 
@@ -99,7 +217,7 @@ hindi ka naman talaga kulang...</textarea>
 
 <script>
 const firebaseConfig = {
-  apiKey: "YOUR_KEY",
+  apiKey: "YOUR_API_KEY",
   authDomain: "comtronics-tts.firebaseapp.com",
   projectId: "comtronics-tts"
 };
@@ -108,6 +226,7 @@ firebase.initializeApp(firebaseConfig);
 
 let currentUser = null;
 
+/* LOGIN */
 function loginWithGoogle(){
   let provider = new firebase.auth.GoogleAuthProvider();
 
@@ -115,15 +234,18 @@ function loginWithGoogle(){
     .then(res => {
       currentUser = res.user;
       alert("Logged in: " + currentUser.email);
+      loadUsage();
     });
 }
 
 firebase.auth().onAuthStateChanged(user=>{
   if(user){
     currentUser = user;
+    loadUsage();
   }
 });
 
+/* VOICES */
 let allVoices = [];
 
 async function loadVoices(){
@@ -151,6 +273,21 @@ function filterVoices(){
   renderVoices(allVoices.filter(v=>v.name.toLowerCase().includes(k)));
 }
 
+/* USAGE */
+async function loadUsage(){
+  let user_id = currentUser ? currentUser.uid : "guest";
+
+  let res = await fetch(`https://comtronics-tts.onrender.com/usage?user_id=${user_id}`);
+  let data = await res.json();
+
+  document.getElementById("plan").innerText = data.plan.toUpperCase() + " PLAN";
+  document.getElementById("usageText").innerText = `${data.usage} / ${data.limit} used`;
+
+  let percent = (data.usage / data.limit) * 100;
+  document.getElementById("progressBar").style.width = percent + "%";
+}
+
+/* GENERATE */
 async function generate(){
   let text = document.getElementById("text").value;
   let voice = document.getElementById("voice").value;
@@ -167,6 +304,12 @@ async function generate(){
   }
 
   document.getElementById("audio").src = url;
+
+  loadUsage();
+}
+
+function upgrade(){
+  alert("Upgrade system coming soon 💳");
 }
 
 window.onload = loadVoices;
