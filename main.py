@@ -1,11 +1,18 @@
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, JSONResponse
 import edge_tts
-import uuid
-import subprocess
-from datetime import datetime
+import io
+
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+from datetime import date
+
+# 🔥 INIT FIREBASE ADMIN
+cred = credentials.Certificate("serviceAccountKey.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
 
 app = FastAPI()
 
@@ -17,110 +24,77 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-
-@app.get("/")
-def home():
-    return FileResponse("static/index.html")
-
-
-# =========================
-# FORMAT FIX
-# =========================
-def fix_rate(rate: str):
-    if not rate.startswith("+") and not rate.startswith("-"):
-        rate = "+" + rate
-    if not rate.endswith("%"):
-        rate += "%"
-    return rate
-
-
-def fix_pitch(pitch: str):
-    if not pitch.startswith("+") and not pitch.startswith("-"):
-        pitch = "+" + pitch
-    if not pitch.endswith("Hz"):
-        pitch += "Hz"
-    return pitch
-
-
-# =========================
-# USER LIMIT (TEMP)
-# =========================
-user_usage = {}
-
-def check_limit(user_id):
-    today = str(datetime.now().date())
-
-    if user_id not in user_usage:
-        user_usage[user_id] = {"date": today, "count": 0}
-
-    if user_usage[user_id]["date"] != today:
-        user_usage[user_id] = {"date": today, "count": 0}
-
-    if user_usage[user_id]["count"] >= 10:
-        return False
-
-    user_usage[user_id]["count"] += 1
-    return True
-
-
-# =========================
-# VOICES
-# =========================
+# 🎤 VOICE LIST
 @app.get("/voices")
-def get_voices():
-    result = subprocess.run(
-        ["edge-tts", "--list-voices"],
-        capture_output=True,
-        text=True,
-        encoding="utf-8"
-    )
+async def voices():
+    voices = await edge_tts.list_voices()
 
-    lines = result.stdout.split("\n")[2:]
-
-    voices = []
-
-    for line in lines:
-        if line.strip() == "":
-            continue
-
-        parts = line.split()
-
-        name = parts[0]
-        gender = parts[1]
-        lang = name.split("-")[0] + "-" + name.split("-")[1]
-
-        voices.append({
-            "name": name,
-            "gender": gender,
-            "lang": lang
-        })
-
-    return {"voices": voices}
+    return {
+        "voices": [
+            {
+                "name": v["ShortName"],
+                "lang": v["Locale"],
+                "gender": v["Gender"]
+            }
+            for v in voices
+        ]
+    }
 
 
-# =========================
-# TTS
-# =========================
+# 🔊 TTS WITH USAGE LIMIT
 @app.get("/tts")
-async def tts(text: str, voice: str, rate: str, pitch: str, user_id: str = "guest"):
+async def tts(text: str, voice: str, rate: str, pitch: str, user_id: str):
 
-    if not check_limit(user_id):
-        return {"error": "Daily limit reached (10/day)"}
+    user_ref = db.collection("users").document(user_id)
+    user = user_ref.get()
 
-    rate = fix_rate(rate)
-    pitch = fix_pitch(pitch)
+    today = str(date.today())
 
-    filename = f"output_{uuid.uuid4().hex}.mp3"
+    # CREATE USER
+    if not user.exists:
+        user_ref.set({
+            "plan": "free",
+            "usage_today": 0,
+            "last_reset": today
+        })
+        usage = 0
+        plan = "free"
 
+    else:
+        data = user.to_dict()
+        usage = data.get("usage_today", 0)
+        plan = data.get("plan", "free")
+
+        # RESET DAILY
+        if data.get("last_reset") != today:
+            usage = 0
+            user_ref.update({
+                "usage_today": 0,
+                "last_reset": today
+            })
+
+    # 🚫 LIMIT
+    if plan == "free" and usage >= 10:
+        return JSONResponse({"error": "Daily limit reached. Upgrade to Pro."})
+
+    # ✅ INCREMENT
+    user_ref.set({
+        "plan": plan,
+        "usage_today": usage + 1,
+        "last_reset": today
+    }, merge=True)
+
+    # 🎤 GENERATE AUDIO
     communicate = edge_tts.Communicate(
         text=text,
         voice=voice,
-        rate=rate,
-        pitch=pitch
+        rate=f"{rate}%",
+        pitch=f"{pitch}Hz"
     )
 
-    await communicate.save(filename)
+    audio_bytes = b""
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            audio_bytes += chunk["data"]
 
-    return FileResponse(filename, media_type="audio/mpeg", filename="tts.mp3")
+    return StreamingResponse(io.BytesIO(audio_bytes), media_type="audio/mpeg")

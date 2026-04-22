@@ -7,3 +7,4 @@ __pycache__/
 *.log
 .env
 node_modules/
+serviceAccountKey.json
