@@ -1,0 +1,9 @@
+venv/
+tts_env/
+__pycache__/
+*.pyc
+*.mp3
+*.wav
+*.log
+.env
+node_modules/

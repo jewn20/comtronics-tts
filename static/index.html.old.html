@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>COMTRONICS TTS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      padding: 15px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      color: #38bdf8;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 12px;
+    }
+
+    label {
+      font-size: 13px;
+      color: #94a3b8;
+    }
+
+    textarea, input, select {
+      width: 100%;
+      max-width: 100%;
+      margin-top: 5px;
+      padding: 10px;
+      border-radius: 8px;
+      background: #0f172a;
+      color: white;
+      border: 1px solid #334155;
+    }
+
+    input[type=range] {
+      width: 100%;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .row span {
+      min-width: 70px;
+      text-align: right;
+      font-size: 12px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: gray;
+    }
+
+    audio {
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    #loader {
+      display: none;
+      text-align: center;
+      margin-top: 10px;
+      color: #38bdf8;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <h1>COMTRONICS TTS</h1>
+  </div>
+
+  <!-- VOICE -->
+  <div class="card">
+    <label>Voice</label>
+    <input type="text" id="search" placeholder="🔍 Search voice..." onkeyup="filterVoices()">
+    <select id="voice"></select>
+  </div>
+
+  <!-- TEXT -->
+  <div class="card">
+    <label>Text</label>
+    <textarea id="text">Minsan...
+
+hindi ka naman talaga kulang...</textarea>
+  </div>
+
+  <!-- RATE -->
+  <div class="card">
+    <label>Speed</label>
+    <div class="row">
+      <input type="range" id="rate" min="-50" max="50" value="10">
+      <span id="rateVal">+10%</span>
+    </div>
+  </div>
+
+  <!-- PITCH -->
+  <div class="card">
+    <label>Tone</label>
+    <div class="row">
+      <input type="range" id="pitch" min="-10" max="10" value="0">
+      <span id="pitchVal">0Hz</span>
+    </div>
+  </div>
+
+  <!-- OUTPUT -->
+  <div class="card">
+    <button id="btn" onclick="generate()">🚀 Generate Voice</button>
+    <div id="loader">Generating voice...</div>
+    <audio id="audio" controls></audio>
+    <a id="download" style="display:none;" download="tts.mp3">⬇ Download</a>
+  </div>
+
+</div>
+
+<script>
+let allVoices = [];
+
+async function loadVoices() {
+  let res = await fetch("/voices");
+  let data = await res.json();
+
+  console.log(data); // debug
+
+  allVoices = data.voices;
+  renderVoices(allVoices);
+}
+
+function renderVoices(list) {
+  let select = document.getElementById("voice");
+  select.innerHTML = "";
+
+  list.forEach(v => {
+    let opt = document.createElement("option");
+
+    let cleanName = v.name.replace("Neural", "");
+    let lang = v.lang;
+
+    let label = `${cleanName} (Neural) ${lang}-${v.gender}`;
+
+    opt.value = v.name;
+    opt.textContent = label;
+
+    select.appendChild(opt);
+  });
+}
+
+function filterVoices() {
+  let keyword = document.getElementById("search").value.toLowerCase();
+
+  let filtered = allVoices.filter(v =>
+    v.name.toLowerCase().includes(keyword)
+  );
+
+  renderVoices(filtered);
+}
+
+window.onload = loadVoices;
+
+const rate = document.getElementById("rate");
+const pitch = document.getElementById("pitch");
+
+rate.oninput = () => {
+  let v = rate.value;
+  document.getElementById("rateVal").innerText =
+    (v >= 0 ? "+" : "") + v + "%";
+};
+
+pitch.oninput = () => {
+  let v = pitch.value;
+  document.getElementById("pitchVal").innerText =
+    (v >= 0 ? "+" : "") + v + "Hz";
+};
+
+async function generate() {
+  let text = document.getElementById("text").value;
+  let voice = document.getElementById("voice").value;
+
+  let btn = document.getElementById("btn");
+  let loader = document.getElementById("loader");
+  let download = document.getElementById("download");
+
+  if (!text.trim()) {
+    alert("Enter text first!");
+    return;
+  }
+
+  btn.disabled = true;
+  loader.style.display = "block";
+
+  let url = `/tts?text=${encodeURIComponent(text)}&voice=${voice}&rate=${rate.value}&pitch=${pitch.value}`;
+
+  let audio = document.getElementById("audio");
+  audio.src = url;
+  audio.play();
+
+  download.href = url;
+  download.style.display = "block";
+
+  setTimeout(() => {
+    btn.disabled = false;
+    loader.style.display = "none";
+  }, 2000);
+}
+</script>
+
+</body>
+</html>

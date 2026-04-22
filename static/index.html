@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>COMTRONICS TTS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI';
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container { max-width: 1100px; width: 100%; padding: 20px; }
+
+    h1 { text-align: center; color: #38bdf8; }
+
+    .layout {
+      display: flex;
+      gap: 20px;
+    }
+
+    .left { flex: 2; }
+    .right { flex: 1; }
+
+    .card {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 400px;
+      background: #0f172a;
+      color: white;
+      border: 1px solid #334155;
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: white;
+      border-radius: 8px;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .row input[type=range] {
+      flex: 1;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #38bdf8;
+      border: none;
+      border-radius: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    audio { width: 100%; margin-top: 10px; }
+
+    @media(max-width:768px){
+      .layout { flex-direction: column; }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1>COMTRONICS TTS</h1>
+
+  <!-- LOGIN -->
+  <div class="card">
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="login()">Login / Register</button>
+  </div>
+
+  <div class="layout">
+
+    <div class="left">
+      <div class="card">
+        <textarea id="text">Minsan...
+
+hindi ka naman talaga kulang...</textarea>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="card">
+
+        <input id="search" placeholder="Search voice..." onkeyup="filterVoices()">
+        <select id="voice"></select>
+
+        <div class="row">
+          <input type="range" id="rate" min="-50" max="50" value="10">
+          <span id="rateVal">+10%</span>
+        </div>
+
+        <div class="row">
+          <input type="range" id="pitch" min="-10" max="10" value="0">
+          <span id="pitchVal">0Hz</span>
+        </div>
+
+        <button onclick="generate()">🚀 Generate</button>
+
+        <audio id="audio" controls></audio>
+
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBGh1_1IkOomFVwmDUysiv4mGrvFrTb_W8",
+  authDomain: "comtronics-tts.firebaseapp.com",
+  projectId: "comtronics-tts"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+let currentUser = null;
+
+function login() {
+  let email = emailEl.value;
+  let password = passwordEl.value;
+
+  firebase.auth().signInWithEmailAndPassword(email, password)
+    .then(res => currentUser = res.user)
+    .catch(() => {
+      firebase.auth().createUserWithEmailAndPassword(email, password)
+        .then(res => currentUser = res.user);
+    });
+}
+
+let emailEl = document.getElementById("email");
+let passwordEl = document.getElementById("password");
+
+let allVoices = [];
+
+async function loadVoices(){
+  let res = await fetch("/voices");
+  let data = await res.json();
+  allVoices = data.voices;
+  renderVoices(allVoices);
+}
+
+function renderVoices(list){
+  let select = document.getElementById("voice");
+  select.innerHTML = "";
+
+  list.forEach(v=>{
+    let opt = document.createElement("option");
+    opt.value = v.name;
+    opt.textContent = `${v.name.replace("Neural","")} (${v.lang}-${v.gender})`;
+    select.appendChild(opt);
+  });
+}
+
+function filterVoices(){
+  let k = document.getElementById("search").value.toLowerCase();
+  renderVoices(allVoices.filter(v=>v.name.toLowerCase().includes(k)));
+}
+
+window.onload = loadVoices;
+
+rate.oninput = ()=> rateVal.innerText = (rate.value>=0?"+":"")+rate.value+"%";
+pitch.oninput = ()=> pitchVal.innerText = (pitch.value>=0?"+":"")+pitch.value+"Hz";
+
+async function generate(){
+  let text = textEl.value;
+  let voice = voiceEl.value;
+  let user_id = currentUser ? currentUser.uid : "guest";
+
+  let url = `/tts?text=${encodeURIComponent(text)}&voice=${voice}&rate=${rate.value}&pitch=${pitch.value}&user_id=${user_id}`;
+
+  audio.src = url;
+  audio.play();
+}
+
+let textEl = document.getElementById("text");
+let voiceEl = document.getElementById("voice");
+let audio = document.getElementById("audio");
+let rate = document.getElementById("rate");
+let pitch = document.getElementById("pitch");
+let rateVal = document.getElementById("rateVal");
+let pitchVal = document.getElementById("pitchVal");
+</script>
+
+</body>
+</html>
